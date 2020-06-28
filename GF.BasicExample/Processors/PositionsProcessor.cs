@@ -9,6 +9,8 @@ using GF.Api.Positions;
 using GF.Api.Values.Orders;
 using GF.BasicExample.Converters;
 using GF.BasicExample.Managers;
+using GF.Api.Values.Orders;
+using GF.Api.Orders.Drafts;
 
 namespace GF.BasicExample.Processors
 {
@@ -107,7 +109,8 @@ namespace GF.BasicExample.Processors
             }
         }
 
-        //Addits -- 
+        //Addits -- -------------------------------------------------------------------------------------------------------------
+        
         public int RunCatTrail(GF.Api.Positions.PositionChangedEventArgs e)
         {
 
@@ -143,6 +146,8 @@ namespace GF.BasicExample.Processors
                     if (e.ContractPosition.Net.Volume < 0)
                     {
                         PlaceOrder(gfClient, e.ContractPosition.Contract.ElectronicContract, OrderSide.BuyToCover, qty);
+                        //ExitPosition(e.ContractPosition.position, ) 
+                        // ^^  Requires IPosition position argument.. not present here!  Doesnt make sense HOW called in MainForm.cs? WHERE is lbPositoin / IPosition passed?
                         Console.WriteLine("SX order sent.");
                     }
                     if (e.ContractPosition.Net.Volume > 0)
@@ -156,7 +161,7 @@ namespace GF.BasicExample.Processors
             return ret;
         }
 
-
+        //Initial Version...
         public int run_cat_trail(GF.Api.Positions.PositionChangedEventArgs e)
         {
 
@@ -261,7 +266,66 @@ namespace GF.BasicExample.Processors
         }
 
 
+        //Helper function to simplify run_cat_trail function... -- BETTER version in closeposition logic...
+        //GF.Api.Positions.PositionChangedEventArgs (Old Type Argument)
+        public int Go_Flat(EventArgs e)
+        {
 
+            var symbol = e.ContractPosition.Contract.Symbol;
+            var net_basis = e.ContractPosition.Net.Volume;
+            int _basis = net_basis > 0 ? 1 : -1;
 
+            var close_qty = Math.Abs(net_basis);
+            Console.WriteLine($"Exitting Position in -- {symbol}");
+            switch (_basis)
+            {
+                case -1:
+                    PlaceOrder(gfClient, e.ContractPosition.Contract.ElectronicContract, OrderSide.BuyToCover, close_qty);
+                    return 0;
+
+                case 1:
+                    PlaceOrder(gfClient, e.ContractPosition.Contract.ElectronicContract, OrderSide.Sell, close_qty);
+                    return 0;
+
+                default:
+                    return -1;
+            }
         }
+
+        private static void PlaceOrder(GF.Api.IGFClient client, GF.Api.Contracts.IContract contract, GF.Api.Values.Orders.OrderSide orderSide, int qty, double limitPrice = 0.0, string comments = "")
+        {
+
+            //var qty = position.Net.Volume;
+            //TWEAK THIS SO THAT IF LIMITPRICE = 0.0, MARKET ORDER!!!!
+            if (client.Orders.Get().Count == 0 || client.Orders.Get().Last().IsFinalState)
+            {
+                OrderDraft orderDraft = new OrderDraftBuilder()
+                    .WithAccountID(client.Accounts.Get().First().ID)
+                    .WithContractID(contract.ID)
+                    .WithSide(orderSide)
+                    .WithOrderType(GF.Api.Values.Orders.OrderType.Market)
+                    //.WithPrice(limitPrice)
+                    .WithQuantity(1)
+                    .WithEnd(DateTime.UtcNow.AddMinutes(1))
+                    .WithComments(comments)
+                    .Build();
+                IReadOnlyList<OrderDraftValidationError> validationErrors = client.Orders.Drafts.Validate(orderDraft);
+                if (validationErrors.Any())
+                {
+                    Console.WriteLine($"ERROR. Order {orderSide} {orderDraft.Quantity} {contract.Symbol} @ {contract.PriceToString(limitPrice)} Limit is invalid:");
+                    foreach (var error in validationErrors)
+                        Console.WriteLine($"\t{error.Message}");
+                }
+                else
+                {
+                    GF.Api.Orders.IOrder order = client.Orders.SendOrder(orderDraft);
+                    Console.WriteLine($"Order {order} was sent");
+                }
+            }
+        }
+
+
+    
+
+    }
     }
