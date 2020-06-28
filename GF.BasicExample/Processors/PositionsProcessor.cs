@@ -11,6 +11,7 @@ using GF.BasicExample.Converters;
 using GF.BasicExample.Managers;
 using GF.Api.Values.Orders;
 using GF.Api.Orders.Drafts;
+using System.Diagnostics;
 
 namespace GF.BasicExample.Processors
 {
@@ -90,7 +91,14 @@ namespace GF.BasicExample.Processors
         private void RefreshPositions(IGFClient client, EventArgs e)
         {
             RefreshPositions();
-            RunCatTrail(e);
+            RunCatTrail(e);                 //Hoping this is the thing called ^^ via += ?  It MUST be bc this CALLS other, so this is called first.
+            Debug.WriteLine("Called RunCatTrail() via RefreshPositions");
+
+
+            //IF run only ONCE ...
+            //Run(e);
+            //Debug.WriteLine("Called Run() via RefreshPositions");
+
         }
 
         private void RefreshPositions()
@@ -279,6 +287,8 @@ namespace GF.BasicExample.Processors
         }
 
 
+
+
         //Helper function to simplify run_cat_trail function... -- BETTER version in closeposition logic...
         //GF.Api.Positions.PositionChangedEventArgs (Old Type Argument)
         public int Go_Flat(EventArgs e)
@@ -338,7 +348,54 @@ namespace GF.BasicExample.Processors
         }
 
 
-    
+        //Original Arg Type GF.Api.Positions.PositionChangedEventArgs
+        public void Run(EventArgs e, int EOD = 1600)
+        {
+            //Gets Datetime and uses inf loop to check for new positions, and manage the trailstop -- Eventually could also use OnBar for entries.
+            //Maybe should be using onBar bc new position only on bars...
+            DateTime now = DateTime.Now;
+            DateTime saveUtcNow = DateTime.UtcNow; //If needed later...
+            TimeSpan FUT_gap = new TimeSpan(0, 2, 0, 0); //0 days, 10 hours, 5 minutes and 1 second
+            //tempDate.ToString("MMMM dd, yyyy")
+            var ns = now.ToString("HH:mm:ss");
+
+            Console.WriteLine("Checking for Market Open...");
+            if (now.Hour == EOD) { Console.WriteLine("Waiting for Market Reopen."); }
+            while (now.Hour == EOD)
+            {
+                now = DateTime.Now;
+                Thread.Sleep(1000 * 60 * 5);                                    //5min Sleep -- waiting for re-open
+
+            }
+            Console.WriteLine("Market now Open.");
+
+            RegisterOnAvgPositionChanged(gfClient);                             //Hopefully starts the event loop?
+            while (true)
+            {
+
+                now = DateTime.Now;
+                //need to call heartbeat? (runner?)
+
+                //Check if Closed FIRST -- so don't accidentally exit in non-hours
+                if (now.Hour == EOD)
+                {
+                    now = DateTime.Now;
+                    Thread.Sleep(1000 * 60 * 60);
+                }
+
+                //Entry Stuff / OnBar could also be called right here...  might want to check that flat tho (return from onBar?)
+
+                ns = now.ToString("HH:mm:ss");
+                Debug.WriteLine($"Running check_ts_cs -- {ns}");
+                run_cat_trail(e);
+
+
+
+                Debug.WriteLine("Iteration Done ...");
+
+            }
+        }
+
 
     }
     }
