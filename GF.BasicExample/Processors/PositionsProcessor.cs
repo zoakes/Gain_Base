@@ -69,11 +69,12 @@ namespace GF.BasicExample.Processors
         public IOrder ExitPosition_Alt(GF.Api.Contracts.IContract contract, OrdersProcessor orderProcessor, EventArgs e)
         {
             //var vol = GetPositionVolume(position) //Requires position here too!
-            var qty = Math.Abs(e.ContractPosition.Net.Volume);
+            var vol = e.ContractPosition.Net.Volume;
+            var exit_qty = Math.Abs(qty);
            //var contract = e.ContractPosition.Contract.ElectronicContract; //Might be able to drop IContract arg? 
             return orderProcessor.SendOrder(
                 vol < 0 ? OrderSide.BuyToCover : OrderSide.Sell,
-                Math.Abs(vol),
+                exit_qty,
                 contract,
                 OrderType.Market);
                 
@@ -89,6 +90,7 @@ namespace GF.BasicExample.Processors
             client.Accounts.AccountSummaryChanged += RefreshPositions;
         }
 
+        //Modified to CALL TRAILSTOP constantly upon any changes in position.
         private void RefreshPositions(IGFClient client, EventArgs e)
         {
             RefreshPositions();
@@ -182,9 +184,12 @@ namespace GF.BasicExample.Processors
                     }
                     else //Alternate Block -- could replace ^^ with JUST this.
                     {
-                        Console.WriteLine("Exit order sent -- Flat.");
+                        Console.WriteLine("Backup Exit order sent -- Flat.");
                         Go_Flat(e);
+                        //OR
+                        //ExitPosition_Alt(e.ContractPosition.Contract.ElectronicContract, orderProcessor, e);
                     }
+                    
 
                 }
             }
