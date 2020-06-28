@@ -70,6 +70,7 @@ namespace GF.BasicExample.Processors
         {
             //var vol = GetPositionVolume(position) //Requires position here too!
             var qty = Math.Abs(e.ContractPosition.Net.Volume);
+           //var contract = e.ContractPosition.Contract.ElectronicContract; //Might be able to drop IContract arg? 
             return orderProcessor.SendOrder(
                 vol < 0 ? OrderSide.BuyToCover : OrderSide.Sell,
                 Math.Abs(vol),
@@ -131,8 +132,8 @@ namespace GF.BasicExample.Processors
         }
 
         //Addits -- -------------------------------------------------------------------------------------------------------------
-        
-        public int RunCatTrail(GF.Api.Positions.PositionChangedEventArgs e)
+        //Initial Type of Argument E: GF.Api.Positions.PositionChangedEventArgs
+        public int RunCatTrail(EventArgs e)
         {
 
             //var account = gfClient.Accounts.Get().FirstOrDefault();
@@ -169,12 +170,20 @@ namespace GF.BasicExample.Processors
                         PlaceOrder(gfClient, e.ContractPosition.Contract.ElectronicContract, OrderSide.BuyToCover, qty);
                         //ExitPosition(e.ContractPosition.position, ) 
                         // ^^  Requires IPosition position argument.. not present here!  Doesnt make sense HOW called in MainForm.cs? WHERE is lbPositoin / IPosition passed?
+
+                        //Alternate Option...
+                        //Go_Flat(e);
                         Console.WriteLine("SX order sent.");
                     }
-                    if (e.ContractPosition.Net.Volume > 0)
+                    else if (e.ContractPosition.Net.Volume > 0)
                     {
                         PlaceOrder(gfClient, e.ContractPosition.Contract.ElectronicContract, OrderSide.Sell, qty);
                         Console.WriteLine("LX order sent.");
+                    }
+                    else //Alternate Block -- could replace ^^ with JUST this.
+                    {
+                        Console.WriteLine("Exit order sent -- Flat.");
+                        Go_Flat(e);
                     }
 
                 }
