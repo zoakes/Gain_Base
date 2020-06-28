@@ -64,6 +64,19 @@ namespace GF.BasicExample.Processors
                 OrderType.Market);
         }
 
+        //ExitPosition with no Position required... Does require contract and EventArgs...
+        public IOrder ExitPosition_Alt(GF.Api.Contracts.IContract contract, OrdersProcessor orderProcessor, EventArgs e)
+        {
+            //var vol = GetPositionVolume(position) //Requires position here too!
+            var qty = Math.Abs(e.ContractPosition.Net.Volume);
+            return orderProcessor.SendOrder(
+                vol < 0 ? OrderSide.BuyToCover : OrderSide.Sell,
+                Math.Abs(vol),
+                contract,
+                OrderType.Market);
+                
+        }
+
         protected override void OnLoginComplete(IGFClient client, LoginCompleteEventArgs e)
         {
             base.OnLoginComplete(client, e);
@@ -305,7 +318,7 @@ namespace GF.BasicExample.Processors
                     .WithSide(orderSide)
                     .WithOrderType(GF.Api.Values.Orders.OrderType.Market)
                     //.WithPrice(limitPrice)
-                    .WithQuantity(1)
+                    .WithQuantity(qty)
                     .WithEnd(DateTime.UtcNow.AddMinutes(1))
                     .WithComments(comments)
                     .Build();
